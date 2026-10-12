@@ -28,11 +28,11 @@
     "docs:preview": "vitepress preview docs"
   },
   "bin": {
-    "chef": "./bin/chef"
+    "chef": "bin/chef"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bitrix-tools/chef.git"
+    "url": "git+https://github.com/bitrix-tools/chef.git"
   },
   "homepage": "https://github.com/bitrix-tools/chef#readme",
   "bugs": {
