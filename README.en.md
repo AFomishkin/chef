@@ -110,6 +110,7 @@ export default {
 | `rebuild` | `string[]` | Extensions to rebuild after building the current one |
 | `emitDeclaration` | `boolean` | Generate `.d.ts` with namespace declarations (default: true) |
 | `safeNamespaces` | `boolean` | Safe access to dependency namespaces via optional chaining |
+| `banner` | `string \| {top?, bottom?}` | Comment at the top and/or the end of the JS bundle |
 | `standalone` | `boolean \| object` | Standalone build with inlined dependencies |
 | `cssImages` | `object` | CSS image processing (`type`, `maxSize`, `absolutePaths`) |
 | `baseline` | `boolean` | Check web feature availability during build (default: true) |

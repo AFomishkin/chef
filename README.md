@@ -110,6 +110,7 @@ export default {
 | `rebuild` | `string[]` | Расширения для пересборки после сборки текущего |
 | `emitDeclaration` | `boolean` | Генерация `.d.ts` с namespace-декларациями (по умолчанию: true) |
 | `safeNamespaces` | `boolean` | Безопасные обращения к неймспейсам зависимостей через optional chaining |
+| `banner` | `string \| {top?, bottom?}` | Комментарий в начале и/или в конце JS-бандла |
 | `standalone` | `boolean \| object` | Автономная сборка с инлайном зависимостей |
 | `cssImages` | `object` | Обработка изображений в CSS (`type`, `maxSize`, `absolutePaths`) |
 | `baseline` | `boolean` | Проверка доступности веб-фич при сборке (по умолчанию: true) |

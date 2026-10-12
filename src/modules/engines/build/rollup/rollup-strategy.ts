@@ -30,6 +30,7 @@ import concatPlugin from './plugins/concat';
 import stripCommentsPlugin from './plugins/strip-comments';
 import safeNamespacesPlugin from './plugins/safe-namespaces';
 import tabIndentPlugin from './plugins/tab-indent';
+import bannerPlugin from './plugins/banner';
 
 import type { ParsedCommandLine } from 'typescript/unstable/sync';
 import type {
@@ -1638,6 +1639,7 @@ export class RollupBuildStrategy extends BuildStrategy
 				...(options.minify ? [] : [tabIndentPlugin()]),
 				...(options.minify ? [RollupBuildStrategy.createTerserPlugin(typeof options.minify === 'object' ? options.minify : {})] : []),
 				...(options.safeNamespaces ? [safeNamespacesPlugin()] : []),
+				...(options.banner?.top || options.banner?.bottom ? [bannerPlugin(options.banner)] : []),
 			],
 			onwarn: onWarn,
 			treeshake: RollupBuildStrategy.#resolveTreeshake(options.treeshake),

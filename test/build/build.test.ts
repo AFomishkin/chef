@@ -362,6 +362,62 @@ describe('build', () => {
 		});
 	});
 
+	describe('banner', () => {
+		const tsExtensionPath = path.join(fixturesPath, 'ts-extension');
+		const concatExtensionPath = path.join(fixturesPath, 'concat-extension');
+
+		beforeEach(() => {
+			cleanDist(tsExtensionPath);
+			cleanDist(concatExtensionPath);
+		});
+
+		afterEach(() => {
+			cleanDist(tsExtensionPath);
+			cleanDist(concatExtensionPath);
+		});
+
+		it('should keep top and bottom banners in a TypeScript bundle', async () => {
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.banner = { top: '/* Top banner */', bottom: 'Bottom banner' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const lines = fs.readFileSync(path.join(tsExtensionPath, 'dist', 'bundle.js'), 'utf-8').split('\n');
+			assert.equal(lines[0], '/* eslint-disable */');
+			assert.equal(lines[1], '/* Top banner */');
+			assert.equal(lines.at(-3), '/*! Bottom banner */');
+			assert.match(lines.at(-2), /^\/\/# sourceMappingURL=/);
+		});
+
+		it('should keep banner in a minified bundle', async () => {
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.minify = true;
+			options.banner = { top: '/* Top banner */', bottom: '' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const content = fs.readFileSync(path.join(tsExtensionPath, 'dist', 'bundle.js'), 'utf-8');
+			assert.include(content, '/* Top banner */');
+		});
+
+		it('should place banners around the concatenated bundle', async () => {
+			const options = getBuildOptions(concatExtensionPath, loadBundleConfig(concatExtensionPath));
+			options.banner = { top: '/* Top banner */', bottom: '/* Bottom banner */' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const content = fs.readFileSync(path.join(concatExtensionPath, 'dist', 'extension.bundle.js'), 'utf-8');
+			assert.isTrue(content.startsWith('/* eslint-disable */\n/* Top banner */\n'));
+			assert.isBelow(content.indexOf('LegacyLast'), content.indexOf('/* Bottom banner */'));
+			assert.match(content, /\/\* Bottom banner \*\/\n\/\/# sourceMappingURL=[^\n]+$/);
+		});
+	});
+
 	describe('emit declaration', () => {
 		const extensionPath = path.join(fixturesPath, 'ts-extension');
 		const inputPath = path.join(extensionPath, 'src', 'index.ts');

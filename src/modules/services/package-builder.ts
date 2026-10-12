@@ -192,6 +192,7 @@ export class PackageBuilder
 						: (defaults?.emitDeclaration ?? true)),
 			),
 			safeNamespaces: bundleConfig.get('safeNamespaces'),
+			banner: bundleConfig.get('banner'),
 			baseline: enforce?.baseline
 				?? (bundleConfig.has('baseline')
 					? bundleConfig.get('baseline')

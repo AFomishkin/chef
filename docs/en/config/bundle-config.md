@@ -37,6 +37,7 @@ export default {
 | `transformClasses` | `boolean \| string[]` | Transpile classes — all (`true`) or by name |
 | `emitDeclaration` | `boolean` | Generate `.d.ts` with namespace declarations (default: `true`) |
 | `safeNamespaces` | `boolean` | Safe access to dependency namespaces via optional chaining |
+| `banner` | `string \| {top?, bottom?}` | [Comment](#banner) at the top and/or the end of the JS bundle |
 | `cssImages` | `object` | CSS image processing options |
 | `baseline` | `boolean` | Check web feature availability during build (default: `true`) |
 
@@ -397,6 +398,57 @@ When enabled, dependency references in the IIFE wrapper use `?.` and `??`:
 ```
 
 The extension's own namespace is not transformed — it is already safely initialized at the top of the bundle.
+
+## Banner
+
+The `banner` option adds a comment to the JS bundle on every build — for example, a copyright notice, a license or other legal text.
+
+A string is added to the top of the bundle:
+
+```ts
+export default {
+  input: './src/index.ts',
+  output: './dist/my.bundle.js',
+  banner: 'Copyright (c) Bitrix24',
+};
+```
+
+To choose the position, pass an object with `top` (start) and `bottom` (end) fields. You can set either of them or both:
+
+```ts
+export default {
+  input: './src/index.ts',
+  output: './dist/my.bundle.js',
+  banner: {
+    top: 'Copyright (c) Bitrix24\nAll rights reserved',
+    bottom: '// end of my.bundle',
+  },
+};
+```
+
+Result:
+
+```js
+/* eslint-disable */
+/*!
+ * Copyright (c) Bitrix24
+ * All rights reserved
+ */
+this.BX = this.BX || {};
+(function (exports) {
+  // ...
+})(this.BX.My = this.BX.My || {});
+// end of my.bundle
+//# sourceMappingURL=my.bundle.js.map
+```
+
+How it works:
+
+- Plain text is wrapped into a legal comment `/*! ... */` — minifiers and bundlers keep such comments if the bundle is processed again. Text that is already a comment (`/*! ... */`, `/* ... */` or `//` lines) is inserted as is
+- The top banner goes right after the `/* eslint-disable */` line, the bottom banner goes before the `sourceMappingURL` comment
+- The banner is added to the finished bundle: neither comment stripping in TypeScript builds nor minification removes it. With `concat`, it wraps the whole concatenated file
+- The source map is shifted by the added lines, so positions in the debugger stay correct
+- The banner is added to the JS bundle only; the CSS bundle is left unchanged
 
 ## Environment Variables
 

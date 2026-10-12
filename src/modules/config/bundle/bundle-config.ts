@@ -72,6 +72,12 @@ export interface BundleConfig {
 	 */
 	alias?: boolean;
 	safeNamespaces?: boolean;
+	/**
+	 * Comment added to the JS bundle after the build. A string is placed at the
+	 * top of the bundle; `{ top, bottom }` places text at the top and/or the end.
+	 * Text that is not a comment is wrapped into a legal comment (`/*! ... *\/`).
+	 */
+	banner?: string | { top?: string; bottom?: string };
 	baseline?: boolean;
 	production?: boolean;
 }

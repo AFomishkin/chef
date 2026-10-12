@@ -25,3 +25,4 @@ export * from './safe-namespaces-strategy';
 export * from './baseline-strategy';
 export * from './production-strategy';
 export * from './alias-strategy';
+export * from './banner-strategy';
