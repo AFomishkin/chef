@@ -63,7 +63,7 @@
     "@babel/preset-env": "^7.29.7",
     "@babel/traverse": "^7.29.8",
     "@babel/types": "^7.29.8",
-    "@bitrix24/oxlint-config-bitrix24": "^0.1.0",
+    "@bitrix24/oxlint-config-bitrix24": "^0.1.1",
     "@bitrix24/oxlint-config-bitrix24-mobile": "^0.1.0",
     "@inquirer/prompts": "^8.7.2",
     "@mdn/browser-compat-data": "^7.3.17",
