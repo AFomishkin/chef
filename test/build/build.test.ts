@@ -13,6 +13,7 @@ import { transformIifeLine } from '../../src/modules/engines/build/rollup/plugin
 import { transformClassesStrategy } from '../../src/modules/config/bundle/strategies/transform-classes-strategy';
 import { getSemanticErrors } from '../test-utils/semantic-errors';
 
+import type { OutputChunk } from 'rollup';
 import type { BuildOptions } from '../../src/modules/engines/build/build-types';
 
 const fixturesPath = path.resolve(import.meta.dirname, '../fixtures/source-repo/ui/install/js/ui');
@@ -359,6 +360,126 @@ describe('build', () => {
 			const jsOutput = path.join(extensionPath, 'dist', 'bundle.js');
 			const content = fs.readFileSync(jsOutput, 'utf-8');
 			assert.include(content, '/* eslint-disable */', 'eslint-disable banner should be preserved');
+		});
+	});
+
+	describe('banner', () => {
+		const tsExtensionPath = path.join(fixturesPath, 'ts-extension');
+		const concatExtensionPath = path.join(fixturesPath, 'concat-extension');
+		const cssOnlyExtensionPath = path.join(fixturesPath, 'css-only');
+
+		beforeEach(() => {
+			cleanDist(tsExtensionPath);
+			cleanDist(concatExtensionPath);
+			cleanDist(cssOnlyExtensionPath);
+		});
+
+		afterEach(() => {
+			cleanDist(tsExtensionPath);
+			cleanDist(concatExtensionPath);
+			cleanDist(cssOnlyExtensionPath);
+		});
+
+		it('should keep top and bottom banners in a TypeScript bundle', async () => {
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.banner = { top: '/* Top banner */', bottom: 'Bottom banner' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const lines = fs.readFileSync(path.join(tsExtensionPath, 'dist', 'bundle.js'), 'utf-8').split('\n');
+			assert.equal(lines[0], '/* eslint-disable */');
+			assert.equal(lines[1], '/* Top banner */');
+			assert.equal(lines.at(-3), '/*! Bottom banner */');
+			assert.match(lines.at(-2), /^\/\/# sourceMappingURL=/);
+		});
+
+		it('should keep banner in a minified bundle', async () => {
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.minify = true;
+			options.banner = { top: '/* Top banner */', bottom: '' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const content = fs.readFileSync(path.join(tsExtensionPath, 'dist', 'bundle.js'), 'utf-8');
+			assert.include(content, '/* Top banner */');
+		});
+
+		it('should place banners around the concatenated bundle', async () => {
+			const options = getBuildOptions(concatExtensionPath, loadBundleConfig(concatExtensionPath));
+			options.banner = { top: '/* Top banner */', bottom: '/* Bottom banner */' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const content = fs.readFileSync(path.join(concatExtensionPath, 'dist', 'extension.bundle.js'), 'utf-8');
+			assert.isTrue(content.startsWith('/* eslint-disable */\n/* Top banner */\n'));
+			assert.include(content, 'LegacyLast');
+			assert.isBelow(content.indexOf('LegacyLast'), content.indexOf('/* Bottom banner */'));
+			assert.match(content, /\/\* Bottom banner \*\/\n\/\/# sourceMappingURL=[^\n]+$/);
+		});
+
+		it('should not create an empty JS bundle because of line comment banners', async () => {
+			const options = getBuildOptions(cssOnlyExtensionPath, loadBundleConfig(cssOnlyExtensionPath));
+			options.banner = { top: '// Copyright', bottom: '// End of bundle' };
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+			assert.isTrue(fs.existsSync(path.join(cssOnlyExtensionPath, 'dist', 'bundle.css')));
+			assert.isFalse(fs.existsSync(path.join(cssOnlyExtensionPath, 'dist', 'bundle.js')));
+			assert.isFalse(fs.existsSync(path.join(cssOnlyExtensionPath, 'dist', 'bundle.js.map')));
+		});
+
+		it('should give plugins from the config the bundle with the banner', async () => {
+			let generatedCode = '';
+			let generatedMappings = '';
+
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.banner = { top: 'First line\nSecond line', bottom: 'Bottom banner' };
+			options.customPlugins = [{
+				name: 'read-bundle',
+				generateBundle(outputOptions, bundle)
+				{
+					const chunk = bundle['bundle.js'] as OutputChunk;
+					generatedCode = chunk.code;
+					generatedMappings = chunk.map.mappings;
+				},
+			}];
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const distPath = path.join(tsExtensionPath, 'dist');
+			const writtenMap = JSON.parse(fs.readFileSync(path.join(distPath, 'bundle.js.map'), 'utf-8'));
+			assert.equal(generatedCode, fs.readFileSync(path.join(distPath, 'bundle.js'), 'utf-8'));
+			assert.equal(generatedMappings, writtenMap.mappings);
+		});
+
+		it('should add the banner to a JS asset emitted as bytes', async () => {
+			const options = getBuildOptions(tsExtensionPath, loadBundleConfig(tsExtensionPath));
+			options.typescript = true;
+			options.banner = { top: 'Copyright', bottom: '' };
+			options.customPlugins = [{
+				name: 'emit-worker',
+				buildStart()
+				{
+					this.emitFile({
+						type: 'asset',
+						fileName: 'worker.js',
+						source: new TextEncoder().encode('self.answer = 42;\n'),
+					});
+				},
+			}];
+			const result = await buildService.build(options);
+
+			assert.isEmpty(result.errors);
+
+			const content = fs.readFileSync(path.join(tsExtensionPath, 'dist', 'worker.js'), 'utf-8');
+			assert.equal(content, '/*! Copyright */\nself.answer = 42;\n');
 		});
 	});
 

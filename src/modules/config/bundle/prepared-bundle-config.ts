@@ -34,6 +34,7 @@ export interface PreparedBundleConfig {
 	sourceMaps: boolean;
 	emitDeclaration: import('./strategies/emit-declaration-strategy').EmitDeclarationConfig;
 	safeNamespaces: boolean;
+	banner: import('./strategies/banner-strategy').BannerConfig;
 	baseline: boolean;
 	alias: boolean;
 	inline: string[];

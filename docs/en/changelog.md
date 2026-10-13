@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.29.0 <Badge type="tip" text="10/12/2026" />
+
+`bundle.config` has a new `banner` option — a comment added to the JS bundle on every build, such as a copyright notice or a license. A string is added to the top of the bundle, and an object `{ top, bottom }` adds text to the top, the end or both. Plain text is wrapped into a legal comment `/*! ... */`, which minifiers and bundlers keep when the bundle is processed again; text that is already a comment is inserted as is. The banner is added to the finished bundle, so neither comment stripping in TypeScript builds nor minification removes it, and with `concat` it wraps the whole concatenated file. The source map is shifted by the added lines, so positions in the debugger stay correct.
+
 ## v1.28.1 <Badge type="tip" text="10/2/2026" />
 
 Fixed the vulnerabilities `npm audit` reported in chef's development dependencies: mocha is updated to version 12 and esbuild to 0.28. Installing and running chef is not affected: the package dependencies are unchanged, and the built chef code is identical to the previous version.

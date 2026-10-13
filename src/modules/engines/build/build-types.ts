@@ -71,6 +71,7 @@ export type BuildOptions = {
 	emitDeclaration?: import('../../config/bundle/strategies/emit-declaration-strategy').EmitDeclarationConfig,
 	safeNamespaces?: boolean,
 	baseline?: boolean,
+	banner?: import('../../config/bundle/strategies/banner-strategy').BannerConfig,
 };
 
 export type BuildCodeOptions = {

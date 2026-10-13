@@ -148,6 +148,15 @@ describe('build sourcemap', () => {
 				assert.equal(classLine, fixture.classSourceLine, 'class should map to its source line after minification');
 			});
 
+			it('maps positions correctly with banner', async () => {
+				const { classLine, returnLine } = await buildAndTrace(fixture, {
+					banner: { top: 'First line\nSecond line', bottom: '/* Bottom */' },
+				});
+
+				assert.equal(classLine, fixture.classSourceLine, 'class should map to its source line');
+				assert.equal(returnLine, fixture.returnSourceLine, 'return should map to its source line');
+			});
+
 			it('maps positions correctly with safeNamespaces', async () => {
 				const { classLine, returnLine } = await buildAndTrace(fixture, { safeNamespaces: true });
 
