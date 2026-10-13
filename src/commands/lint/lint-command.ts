@@ -174,7 +174,7 @@ lintCommand
 				exclude: args.exclude,
 				linter: args.linter,
 			});
-			emitJson(result);
+			await emitJson(result);
 			process.exit(result.success ? 0 : 1);
 		}
 
