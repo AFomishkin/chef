@@ -72,7 +72,8 @@ export class RollupBuildStrategy extends BuildStrategy
 
 			const code = chunk.code
 				.replace(/\/\*[\s\S]*?\*\//g, '')
-				.replace(/\/\/# sourceMappingURL=.*/g, '')
+				// Line comments on their own line: the source map comment and a banner
+				.replace(/^[ \t]*\/\/.*$/gm, '')
 				.replace(/['"]use strict['"];?/g, '')
 				.replace(/\(function\s*\([^)]*\)\s*\{/g, '')
 				.replace(/\}\)\([^)]*\);?/g, '')
@@ -1634,12 +1635,13 @@ export class RollupBuildStrategy extends BuildStrategy
 						(filePath) => path.resolve(options.packageRoot, filePath),
 					),
 				}),
+				// Right after concat, so that plugins from the config see the bundle that is written
+				...(options.banner?.top || options.banner?.bottom ? [bannerPlugin(options.banner)] : []),
 				...(options.customPlugins ?? []),
 				...(options.typescript ? [stripCommentsPlugin({ banner: '/* eslint-disable */' })] : []),
 				...(options.minify ? [] : [tabIndentPlugin()]),
 				...(options.minify ? [RollupBuildStrategy.createTerserPlugin(typeof options.minify === 'object' ? options.minify : {})] : []),
 				...(options.safeNamespaces ? [safeNamespacesPlugin()] : []),
-				...(options.banner?.top || options.banner?.bottom ? [bannerPlugin(options.banner)] : []),
 			],
 			onwarn: onWarn,
 			treeshake: RollupBuildStrategy.#resolveTreeshake(options.treeshake),

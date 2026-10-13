@@ -5,11 +5,14 @@ import type { BannerConfig } from '../../../../config/bundle/strategies/banner-s
 
 const ESLINT_DISABLE_LINE = '/* eslint-disable */\n';
 const SOURCE_MAPPING_URL_PATTERN = /\n\/\/# sourceMappingURL=[^\n]*\n?$/;
+// A lone `\r` and the line and paragraph separators also end a line in JS
+const LINE_TERMINATOR_PATTERN = /\r\n?|[\p{Zl}\p{Zp}]/gu;
 
 /**
- * Adds the banner to the final JS bundle. Runs in `generateBundle` as the last plugin,
- * so the text is not touched by strip-comments or terser and also lands in the file
- * assembled by the concat plugin. The source map is shifted by the lines added on top.
+ * Adds the banner to the final JS bundle. Runs in `generateBundle` right after the concat
+ * plugin: after every `renderChunk` hook, so the text is not touched by strip-comments or
+ * terser, it wraps the file assembled by concat, and plugins from bundle.config `plugins`
+ * already see it. The source map is shifted by the lines added on top.
  */
 export default function bannerPlugin(banner: BannerConfig): Plugin
 {
@@ -27,7 +30,7 @@ export default function bannerPlugin(banner: BannerConfig): Plugin
 					continue;
 				}
 
-				const code = file.type === 'chunk' ? file.code : String(file.source);
+				const code = file.type === 'chunk' ? file.code : toText(file.source);
 				const result = insertBanner(code, top, bottom);
 
 				if (file.type === 'chunk')
@@ -36,13 +39,25 @@ export default function bannerPlugin(banner: BannerConfig): Plugin
 				}
 				else
 				{
-					file.source = result.code;
+					// Bytes stay bytes: tab-indent and the plugin that emitted the asset rely on its type
+					file.source = typeof file.source === 'string' ? result.code : new TextEncoder().encode(result.code);
+				}
+
+				if (result.addedLines === 0)
+				{
+					continue;
+				}
+
+				// Plugins running after this one read the map of the chunk, the written map comes from the asset
+				if (file.type === 'chunk' && file.map)
+				{
+					file.map.mappings = shiftMappings(file.map.mappings, result.insertLine, result.addedLines);
 				}
 
 				const sourceMap = bundle[`${file.fileName}.map`] as OutputAsset | undefined;
-				if (sourceMap && result.addedLines > 0)
+				if (sourceMap)
 				{
-					const map = JSON.parse(String(sourceMap.source));
+					const map = JSON.parse(toText(sourceMap.source));
 					map.mappings = shiftMappings(map.mappings, result.insertLine, result.addedLines);
 					sourceMap.source = JSON.stringify(map);
 				}
@@ -58,8 +73,10 @@ export default function bannerPlugin(banner: BannerConfig): Plugin
  */
 export function toComment(text: string): string
 {
-	const trimmedText = text.trim();
-	if (trimmedText === '' || stripComments(trimmedText).trim() === '')
+	// Line breaks are unified so that a `//` comment cannot end in the middle of a line
+	// and the source map is shifted by as many lines as the browser counts
+	const trimmedText = text.replace(LINE_TERMINATOR_PATTERN, '\n').trim();
+	if (trimmedText === '' || isCommentOnly(trimmedText))
 	{
 		return trimmedText;
 	}
@@ -71,6 +88,24 @@ export function toComment(text: string): string
 	}
 
 	return ['/*!', ...lines.map((line) => ` * ${line}`.trimEnd()), ' */'].join('\n');
+}
+
+/**
+ * Whether the text consists of closed comments only. The line added after the text
+ * survives the stripping only when every block comment is closed: an unclosed `/*`
+ * runs to the end and swallows it. Inserted as is, such text would comment out the bundle.
+ */
+function isCommentOnly(text: string): boolean
+{
+	return stripComments(`${text}\n;`).trim() === ';';
+}
+
+/**
+ * Asset sources may also be bytes, e.g. emitted by plugins from bundle.config `plugins`.
+ */
+function toText(source: string | Uint8Array): string
+{
+	return typeof source === 'string' ? source : new TextDecoder().decode(source);
 }
 
 /**

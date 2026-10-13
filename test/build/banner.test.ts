@@ -36,6 +36,22 @@ describe('banner plugin', () => {
 		it('should return empty string for empty text', () => {
 			assert.equal(toComment('  \n '), '');
 		});
+
+		it('should wrap text with an unclosed block comment', () => {
+			assert.equal(toComment('/* Copyright'), '/*! /* Copyright */');
+			assert.equal(toComment('/*/ Copyright'), '/*! /*\\/ Copyright */');
+			assert.equal(toComment('/* a */ /* b'), '/*! /* a *\\/ /* b */');
+		});
+
+		it('should treat a lone carriage return and line separators as line breaks', () => {
+			const lineSeparator = String.fromCodePoint(0x2028);
+			const paragraphSeparator = String.fromCodePoint(0x2029);
+
+			assert.equal(toComment('// first\rsecond'), '/*!\n * // first\n * second\n */');
+			assert.equal(toComment(`// first${lineSeparator}second`), '/*!\n * // first\n * second\n */');
+			assert.equal(toComment(`Line one${paragraphSeparator}Line two`), '/*!\n * Line one\n * Line two\n */');
+			assert.equal(toComment('// first\r\n// second'), '// first\n// second');
+		});
 	});
 
 	describe('insertBanner', () => {

@@ -419,6 +419,7 @@ To choose the position, pass an object with `top` (start) and `bottom` (end) fie
 export default {
   input: './src/index.ts',
   output: './dist/my.bundle.js',
+  namespace: 'BX.My',
   banner: {
     top: 'Copyright (c) Bitrix24\nAll rights reserved',
     bottom: '// end of my.bundle',
@@ -445,8 +446,8 @@ this.BX = this.BX || {};
 How it works:
 
 - Plain text is wrapped into a legal comment `/*! ... */` — minifiers and bundlers keep such comments if the bundle is processed again. Text that is already a comment (`/*! ... */`, `/* ... */` or `//` lines) is inserted as is
-- The top banner goes right after the `/* eslint-disable */` line, the bottom banner goes before the `sourceMappingURL` comment
-- The banner is added to the finished bundle: neither comment stripping in TypeScript builds nor minification removes it. With `concat`, it wraps the whole concatenated file
+- The top banner goes right after the `/* eslint-disable */` line, or at the very start when there is no such line (in a minified bundle). The bottom banner goes before the `sourceMappingURL` comment
+- The banner is added to the finished bundle: neither comment stripping in TypeScript builds nor minification removes it. With `concat`, it wraps the whole concatenated file. Plugins from `plugins` see the bundle with the banner in their `generateBundle` and `writeBundle` hooks
 - The source map is shifted by the added lines, so positions in the debugger stay correct
 - The banner is added to the JS bundle only; the CSS bundle is left unchanged
 
