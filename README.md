@@ -27,7 +27,7 @@
 - **TypeScript First** — нативная поддержка TypeScript с автоматической транспиляцией
 - **Сборка** — бандлер на основе Rollup с Babel, PostCSS и автозаменой `process.env.NODE_ENV`
 - **Тесты** — unit-тесты (Mocha + Chai) в реальных браузерах через Playwright и E2E-тесты
-- **Линтинг** — интеграция с ESLint
+- **Линтинг** — oxlint с пресетами Bitrix24 и языковой сервер для редакторов
 - **Scaffold** — создание новых расширений командой `chef create`
 - **Миграция** — конвертация Flow.js в TypeScript командой `chef flow-to-ts`
 - **Диагностика** — анализ зависимостей, размеров бандлов, циклических зависимостей и неиспользуемых расширений
@@ -62,7 +62,7 @@ chef build my.extension
 | `chef build` | Сборка расширений (TypeScript, Babel, PostCSS) |
 | `chef test` | Запуск unit и E2E тестов (подкоманды `unit`/`e2e`/`module` для раздельного запуска) |
 | `chef typecheck` | Проверка типов TypeScript в расширениях |
-| `chef lint` | Линтинг расширений через ESLint |
+| `chef lint` | Линтинг расширений через oxlint |
 | `chef diag` | Диагностика: зависимости, размеры бандлов, циклы, неиспользуемые расширения |
 | `chef baseline` | Проверка доступности веб-фич для текущих browser targets |
 | `chef create <name>` | Создание нового расширения |

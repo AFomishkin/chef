@@ -89,7 +89,7 @@ type JsonSummary = {
 
 ```ts
 type JsonErrorPayload = {
-  code: string;          // код из таблицы CF либо ESLint rule id
+  code: string;          // код из таблицы CF либо rule id линтера
   message: string;
   file?: string;         // абсолютный путь, где есть локация
   line?: number;

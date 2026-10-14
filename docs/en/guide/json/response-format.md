@@ -89,7 +89,7 @@ Command-specific extras:
 
 ```ts
 type JsonErrorPayload = {
-  code: string;          // CF code or ESLint rule id
+  code: string;          // CF code or linter rule id
   message: string;
   file?: string;         // absolute path when location is known
   line?: number;

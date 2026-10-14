@@ -27,7 +27,7 @@
 - **TypeScript First** — Native TypeScript support with automatic transpilation
 - **Build** — Rollup-based bundler with Babel, PostCSS, and automatic `process.env.NODE_ENV` replacement
 - **Test** — Unit tests (Mocha + Chai) in real browsers via Playwright, and E2E tests
-- **Lint** — ESLint integration for consistent code quality
+- **Lint** — oxlint with the Bitrix24 presets and a language server for editors
 - **Scaffold** — Generate new extensions with `chef create`
 - **Migrate** — Convert Flow.js to TypeScript with `chef flow-to-ts`
 - **Diagnostics** — Dependency analysis, bundle sizes, circular dependencies and unused extension detection
@@ -62,7 +62,7 @@ chef build my.extension
 | `chef build` | Build extensions (TypeScript, Babel, PostCSS) |
 | `chef test` | Run unit and E2E tests (use `unit`/`e2e`/`module` subcommands to run separately) |
 | `chef typecheck` | Check TypeScript types in extensions |
-| `chef lint` | Lint extensions with ESLint |
+| `chef lint` | Lint extensions with oxlint |
 | `chef diag` | Diagnostics: dependencies, bundle sizes, cycles, unused extensions |
 | `chef baseline` | Check web feature availability for current browser targets |
 | `chef create <name>` | Scaffold a new extension |

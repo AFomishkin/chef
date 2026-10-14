@@ -48,7 +48,7 @@ Common codes in `extensions[].warnings` and `extensions[].errors` for `chef buil
 |---------------------|---------------------------------------------------------------|
 | `CF.LINT_FAILED`    | Linter found errors. Messages — in `extensions[].errors[]`.   |
 
-The `code` of a linter message is the ESLint rule id (`no-console`, `import/no-default-export` etc.). `CF.LINT_FAILED` is a fallback when no rule id is available.
+The `code` of a linter message is the rule id in ESLint format (`no-console`, `import/no-default-export` etc.), oxlint included. `CF.LINT_FAILED` is a fallback when no rule id is available.
 
 ## Tests (CF3xxx)
 

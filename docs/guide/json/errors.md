@@ -48,7 +48,7 @@
 |--------------------|---------------------------------------------------------------|
 | `CF.LINT_FAILED`   | Линтер нашёл ошибки. Сообщения — в `extensions[].errors[]`.   |
 
-В поле `code` сообщения линтера приходит rule id ESLint (`no-console`, `import/no-default-export` и т.п.) — `CF.LINT_FAILED` остаётся резервом для случаев, когда rule id отсутствует.
+В поле `code` сообщения линтера приходит rule id в формате ESLint (`no-console`, `import/no-default-export` и т.п.), в том числе у oxlint — `CF.LINT_FAILED` остаётся резервом для случаев, когда rule id отсутствует.
 
 ## Тесты (CF3xxx)
 
