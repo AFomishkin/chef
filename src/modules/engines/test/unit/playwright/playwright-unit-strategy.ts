@@ -12,6 +12,7 @@ import { resolvePlaywright } from './resolve-playwright';
 import { mapStack } from './map-stack';
 import { embedSourceMap } from './embed-source-map';
 import { signalReady, waitForDebugger } from './debug-signal';
+import { recoverTestBundles, type RecoveredBundles } from './recover-test-bundles';
 
 import type { SourceMap } from 'rollup';
 import type {
@@ -29,7 +30,7 @@ type TestBundle = {
 
 export class PlaywrightUnitStrategy extends UnitTestStrategy
 {
-	static #bundleCache = new Map<string, Promise<TestBundle>>();
+	static #bundleCache = new Map<string, Promise<RecoveredBundles<TestBundle>>>();
 
 	// Run-level errors carry their full diagnostic in the message. Their JS stack would
 	// point at this file — where the ChefError is constructed — which is meaningless to
@@ -49,11 +50,7 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 
 	async #buildTestBundle(options: UnitTestOptions): Promise<TestBundle>
 	{
-		const filteredTests = options.file
-			? options.testFiles.filter((filePath) => filePath.includes(path.basename(options.file)))
-			: options.testFiles;
-
-		const sourceTestsCode = filteredTests
+		const sourceTestsCode = options.testFiles
 			.map((filePath) => `import ${JSON.stringify(filePath.replaceAll('\\', '/'))};`)
 			.join('\n');
 
@@ -69,6 +66,14 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 			namespace: 'BX.TestsBundle',
 			sourcemap: true,
 		});
+		if (buildResult.errors.length > 0)
+		{
+			const diagnostic = buildResult.errors[0];
+			throw Object.assign(new Error(diagnostic.message), {
+				code: diagnostic.code,
+				loc: diagnostic.loc,
+			});
+		}
 
 		return {
 			code: buildResult.code,
@@ -77,12 +82,21 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 		};
 	}
 
-	#getCachedBundle(options: UnitTestOptions): Promise<TestBundle>
+	#getCachedBundle(options: UnitTestOptions): Promise<RecoveredBundles<TestBundle>>
 	{
-		const cacheKey = options.packageRoot + ':' + (options.file ?? '');
+		const files = options.file
+			? options.testFiles.filter((filePath) => filePath.includes(path.basename(options.file)))
+			: options.testFiles;
+		const cacheKey = JSON.stringify([
+			options.packageRoot, options.projectRoot, options.publicPath, options.packageName,
+			options.targets, options.typescript, options.inline, files,
+		]);
 		if (!PlaywrightUnitStrategy.#bundleCache.has(cacheKey))
 		{
-			PlaywrightUnitStrategy.#bundleCache.set(cacheKey, this.#buildTestBundle(options));
+			PlaywrightUnitStrategy.#bundleCache.set(cacheKey, recoverTestBundles(
+				files,
+				(testFiles) => this.#buildTestBundle({ ...options, file: undefined, testFiles }),
+			));
 		}
 
 		return PlaywrightUnitStrategy.#bundleCache.get(cacheKey)!;
@@ -137,6 +151,66 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 			};
 		}
 
+		options.onStatus?.('building');
+		const plan = await this.#getCachedBundle(options);
+		const combined: TestResult = { report: [], stats: {}, consoleLogs: [], errors: [] };
+		const cleanups: Array<() => Promise<void>> = [];
+		for (const failure of plan.failures)
+		{
+			const label = failure.files.length === 1
+				? path.relative(options.packageRoot, failure.files[0]).replaceAll('\\', '/')
+				: 'combined test bundle';
+			const message = `Could not build ${label}: ${failure.error.message}`;
+			const error = Object.assign(new Error(message, { cause: failure.error }), {
+				code: 'code' in failure.error ? failure.error.code : undefined,
+			});
+			error.stack = failure.error.stack;
+			combined.errors.push(error);
+			// A runError alone is invisible to consumers that already received healthy
+			// tests for this target. Keep the build failure as a stable red entry too.
+			const token: TestToken = {
+				id: 'TEST_FAILED',
+				title: `[build] ${label}`,
+				suite: ['Chef build errors'],
+				browser: options.browserType ?? 'chromium',
+				error: { message, stack: failure.error.stack },
+			};
+			combined.report.push(token);
+			options.onToken?.(token);
+		}
+		for (const { bundle } of plan.bundles)
+		{
+			// Only compilation triggers recovery. Browser/config/runtime/assertion
+			// failures are never retried, and each successful bundle executes once.
+			const result = await this.#runBundle(options, playwrightConfig, bundle);
+			combined.report.push(...result.report);
+			combined.errors.push(...result.errors);
+			combined.consoleLogs.push(...result.consoleLogs);
+			for (const [key, value] of Object.entries(result.stats ?? {}))
+			{
+				combined.stats[key] = typeof value === 'number'
+					? Number(combined.stats[key] ?? 0) + value
+					: value;
+			}
+			if (result.debugCleanup)
+			{
+				cleanups.push(result.debugCleanup);
+			}
+		}
+		combined.stats.failures = Number(combined.stats.failures ?? 0) + plan.failures.length;
+		combined.stats.tests = Number(combined.stats.tests ?? 0) + plan.failures.length;
+		combined.debugCleanup = cleanups.length > 0
+			? async () => { await Promise.all(cleanups.map((cleanup) => cleanup())); }
+			: null;
+		return combined;
+	}
+
+	async #runBundle(
+		options: UnitTestOptions,
+		playwrightConfig: NonNullable<Awaited<ReturnType<typeof findPlaywrightConfig>>>,
+		bundle: TestBundle,
+	): Promise<TestResult>
+	{
 		const browserType = options.browserType ?? 'chromium';
 		const onStatus = options.onStatus ?? (() => {});
 
@@ -306,7 +380,7 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 				}
 			});
 
-			const { code: testsCodeBundle, map: sourceMap, css } = await this.#getCachedBundle(options);
+			const { code: testsCodeBundle, map: sourceMap, css } = bundle;
 
 			tracer = sourceMap ? new TraceMap(sourceMap as any) : null;
 
