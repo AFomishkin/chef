@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.0.0 <Badge type="tip" text="10/14/2026" />
+
+Major version: the default linter has changed. `chef lint` now lints with oxlint and does not read `eslint.config.*`, so results may differ from before, including in CI. To keep ESLint, run `chef lint --linter eslint` or set `CHEF_LINTER=eslint`.
+
+chef uses the project's oxlint config (`oxlint.config.ts` or `.oxlintrc.json`) and falls back to the Bitrix24 presets `@bitrix24/oxlint-config-bitrix24` and `@bitrix24/oxlint-config-bitrix24-mobile`. Files matched by `ignorePatterns` in the project config are skipped. oxlint cannot read Flow, so chef lints Flow files through a copy that keeps every position of the original: the `?` of maybe types is removed and the file is read as TypeScript, and if TypeScript cannot parse it, the types are replaced with spaces. Findings caused by the transformation are not reported, and `--fix` edits are applied to the original. A file that cannot be parsed is reported with its parse error instead of being skipped silently. Extensions are passed to oxlint in batches as they are found, so a single oxlint process lints hundreds of files.
+
+There is now a language server for editors: `chef lint --lsp` or the `chef-oxlint --lsp` binary. It handles Flow files the same way `chef lint` does, opens each extension as a separate workspace, and a config path set in the editor takes precedence over the presets. The docs explain how to set it up in PhpStorm.
+
+Fixed `banner` edge cases. Text with an unclosed `/*` no longer comments out the bundle, a lone `\r` and the U+2028/U+2029 separators count as line breaks, the banner goes to the very top of a minified bundle, and plugins from `plugins` see the bundle with the banner already added. With `--reporter json`, the result is no longer cut off at 64 KiB when piped (e.g. to `jq`) on macOS. Updated source-map-js to fix a vulnerability.
+
 ## v1.29.0 <Badge type="tip" text="10/12/2026" />
 
 `bundle.config` has a new `banner` option — a comment added to the JS bundle on every build, such as a copyright notice or a license. A string is added to the top of the bundle, and an object `{ top, bottom }` adds text to the top, the end or both. Plain text is wrapped into a legal comment `/*! ... */`, which minifiers and bundlers keep when the bundle is processed again; text that is already a comment is inserted as is. The banner is added to the finished bundle, so neither comment stripping in TypeScript builds nor minification removes it, and with `concat` it wraps the whole concatenated file. The source map is shifted by the added lines, so positions in the debugger stay correct.
