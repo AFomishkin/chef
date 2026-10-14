@@ -1,3 +1,5 @@
+import * as path from 'node:path';
+
 import chalk from 'chalk';
 import table from 'text-table';
 
@@ -44,7 +46,7 @@ export function verboseFormatter(result: LintResult): { text: string; level: Lin
 	const text = result.files
 		.filter((file) => file.messages.length > 0)
 		.map((file) => {
-			const head = `${chalk.bold(file.filePath.split('/src/')[1])}`;
+			const head = `${chalk.bold(file.filePath.split(path.sep).join('/').split('/src/')[1])}`;
 			const messages = table(
 				file.messages.map((message) => {
 					return [

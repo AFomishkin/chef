@@ -103,9 +103,17 @@ class Client
 		return this.diagnostics.get(uri) ?? [];
 	}
 
-	stop(): void
+	/**
+	 * Stops the server the way an editor does. Killing the process would stop chef-oxlint
+	 * alone on Windows, and the language server it started would keep the workspace busy.
+	 */
+	async stop(): Promise<void>
 	{
-		this.#process.kill();
+		const closed = new Promise((resolve) => this.#process.on('close', resolve));
+		await this.request('shutdown', null);
+		this.send({ method: 'exit' });
+		this.#process.stdin.end();
+		await closed;
 	}
 }
 
@@ -144,8 +152,8 @@ describe('oxlint language server', function ()
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -200,8 +208,8 @@ describe('oxlint language server with pull diagnostics', function ()
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -271,8 +279,8 @@ describe('oxlint language server with a config path set in the editor', function
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -325,8 +333,8 @@ describe('oxlint language server in a repository of extensions', function ()
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -416,8 +424,8 @@ describe('oxlint language server for an editor that fails to give its configurat
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -467,8 +475,8 @@ describe('oxlint language server with several extensions open', function ()
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -515,8 +523,8 @@ describe('oxlint language server with many extensions opened at once', function 
 		client.send({ method: 'initialized', params: {} });
 	});
 
-	after(() => {
-		client.stop();
+	after(async () => {
+		await client.stop();
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -525,5 +533,42 @@ describe('oxlint language server with many extensions opened at once', function 
 		const responses = await Promise.all(uris.map((uri) => client.request('textDocument/diagnostic', { textDocument: { uri } })));
 
 		assert.isTrue(responses.every((response) => response.result.items.some((d: { code: string }) => d.code === 'eslint(no-debugger)')));
+	});
+});
+
+describe('oxlint language server with a document under a path that is not canonical', function ()
+{
+	this.timeout(60000);
+
+	// not canonical where the temp directory is: a symlink on macOS, a short 8.3 name on Windows
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chef-oxlint-lsp-test-'));
+	const flowUri = pathToFileURL(path.join(root, 'ext', 'src', 'wrap.js')).href;
+	const unsavedUri = pathToFileURL(path.join(root, 'ext', 'src', 'unsaved.js')).href;
+	let client: Client;
+
+	before(async () => {
+		fs.mkdirSync(path.join(root, 'ext', 'src'), { recursive: true });
+		fs.writeFileSync(path.join(root, 'ext', 'bundle.config.js'), 'module.exports = {};\n');
+		fs.writeFileSync(path.join(root, '.oxlintrc.json'), JSON.stringify({ categories: { correctness: 'off' }, rules: { 'no-debugger': 'error' } }));
+		client = new Client(root);
+		await client.request('initialize', {
+			processId: process.pid,
+			rootUri: pathToFileURL(root).href,
+			capabilities: { workspace: { configuration: true } },
+		});
+		client.send({ method: 'initialized', params: {} });
+	});
+
+	after(async () => {
+		await client.stop();
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	it('lints a Flow document and an unsaved one under the URIs of the editor', async () => {
+		client.send({ method: 'textDocument/didOpen', params: { textDocument: { uri: flowUri, languageId: 'javascript', version: 1, text: 'export function wrap(value: ?string) { debugger; }\n' } } });
+		client.send({ method: 'textDocument/didOpen', params: { textDocument: { uri: unsavedUri, languageId: 'javascript', version: 1, text: 'debugger;\n' } } });
+		const responses = await Promise.all([flowUri, unsavedUri].map((uri) => client.request('textDocument/diagnostic', { textDocument: { uri } })));
+
+		assert.deepEqual(responses.map((response) => response.result.items.map((d: { code: string }) => d.code)), [['eslint(no-debugger)'], ['eslint(no-debugger)']]);
 	});
 });

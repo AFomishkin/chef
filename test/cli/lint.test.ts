@@ -23,7 +23,7 @@ describe('chef lint', () => {
 		const { exitCode, output } = await runChef(['lint', 'ui.lint-errors'], { cwd: tmpRepo });
 
 		assert.equal(exitCode, 1);
-		assert.include(output, 'src/legacy.js');
+		assert.include(output, path.join('src', 'legacy.js'));
 	});
 
 	it('should skip lint with ESLint when no eslint config is found', async () => {

@@ -97,12 +97,33 @@ type OpenDocument = {
 };
 
 /**
+ * The path the server knows a document by. The server lints the documents of its workspaces
+ * by canonical path, and the path of a document without a file (an unsaved one, the virtual
+ * copy of a Flow file) is not canonicalized: on Windows it keeps short names like `RUNNER~1`,
+ * and the document is not linted. The nearest existing directory is canonicalized instead.
+ */
+function canonicalPath(filePath: string): string
+{
+	try
+	{
+		return fs.realpathSync.native(filePath);
+	}
+	catch
+	{
+		const parent = path.dirname(filePath);
+
+		return parent === filePath ? filePath : path.join(canonicalPath(parent), path.basename(filePath));
+	}
+}
+
+/**
  * Language server for editors: `oxlint --lsp` behind a proxy that lets it lint Flow files.
  *
  * Flow documents are handed to oxlint the way `chef lint` does it (see prepare-source.ts),
- * under a virtual `*.js.ts` URI when they are linted as TypeScript. Diagnostics and edits
- * coming back are moved to the real URI; transformations keep every position, so ranges
- * need no mapping, only the ones that describe the transformation itself are dropped.
+ * under a virtual `*.js.ts` URI when they are linted as TypeScript; every document goes to
+ * the server under its canonical path. Diagnostics and edits coming back are moved to the
+ * real URI; transformations keep every position, so ranges need no mapping, only the ones
+ * that describe the transformation itself are dropped.
  * Without a project oxlint config the server gets the Bitrix24 presets.
  *
  * The server does not get the editor's workspace folders: on start it walks a workspace
@@ -713,14 +734,16 @@ export class OxlintLspProxy
 			return { uri, prepared: { kind: 'native' }, text, artifacts: null };
 		}
 
-		const prepared = prepareSource(fileURLToPath(uri), text);
+		const filePath = fileURLToPath(uri);
+		const serverUri = pathToFileURL(canonicalPath(filePath)).href;
+		const prepared = prepareSource(filePath, text);
 		if (prepared.kind === 'native' || prepared.kind === 'unparsable')
 		{
-			return { uri, prepared, text, artifacts: null };
+			return { uri: serverUri, prepared, text, artifacts: null };
 		}
 
 		return {
-			uri: prepared.kind === 'flow-as-ts' ? `${uri}.ts` : uri,
+			uri: prepared.kind === 'flow-as-ts' ? `${serverUri}.ts` : serverUri,
 			prepared,
 			text: prepared.text,
 			artifacts: new TransformationArtifacts(text, prepared),

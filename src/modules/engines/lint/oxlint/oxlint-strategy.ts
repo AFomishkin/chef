@@ -279,10 +279,12 @@ export class OxlintStrategy extends LintStrategy
 			? options.files.map((pattern) => normalizePath(pattern))
 			: [`${normalizePath(options.sourcePath)}/**/*.{js,ts}`];
 
-		const files = await fg(patterns, { absolute: true, onlyFiles: true, ignore: IGNORED_FILES, dot: false });
+		// fast-glob returns POSIX paths on Windows, while oxlint reports native ones
+		const files = (await fg(patterns, { absolute: true, onlyFiles: true, ignore: IGNORED_FILES, dot: false }))
+			.map((file) => path.resolve(file));
 		const isExcluded = createPathFilter(options.exclude?.map((p) => path.resolve(p)) ?? []);
 
-		return files.filter((file) => !isExcluded(path.resolve(file))).sort();
+		return files.filter((file) => !isExcluded(file)).sort();
 	}
 
 	async #lintFiles(
