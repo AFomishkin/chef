@@ -11,6 +11,14 @@ import type { BasePackage } from '../../../modules/packages/base-package';
 import type { Task, TaskResult, TaskDetail } from '../../../modules/task/task-types';
 import type { BrowserType, ConsoleLog, TestToken } from '../../../modules/engines/test/test-types';
 
+function unitMetrics(result: ReturnType<ReturnType<typeof createReporter>['finish']>): TaskResult['metrics']
+{
+	return {
+		...result,
+		listing: result.listing ? { kind: 'unit', ...result.listing } : undefined,
+	};
+}
+
 function deduplicateConsoleLogs(sets: ConsoleLog[][]): ConsoleLog[]
 {
 	if (sets.length <= 1)
@@ -99,6 +107,8 @@ function createDebugTask(extension: BasePackage, args: Record<string, any>, brow
 
 				if (testResult.errors.length > 0)
 				{
+					const metrics = testResult.report.length > 0 ? unitMetrics(reporter.finish()) : undefined;
+					await testResult.debugCleanup?.();
 					const details: TaskDetail[] = testResult.errors.map((error: Error) => ({
 						type: 'error' as const,
 						code: 'code' in error ? (error as any).code : undefined,
@@ -110,6 +120,7 @@ function createDebugTask(extension: BasePackage, args: Record<string, any>, brow
 						title: `Unit tests (${label})`,
 						status: 'failed',
 						details,
+						metrics,
 					};
 				}
 
@@ -194,12 +205,14 @@ export function runUnitTestsTask(extension: BasePackage, args: Record<string, an
 				});
 				reporter.stop();
 				reporter.clearStatus();
+				const listMetrics = unitMetrics(reporter.finish());
 
 				if (listResult.errors.length > 0)
 				{
 					return {
 						title: 'Unit tests (errored)',
 						status: 'failed',
+						metrics: listMetrics,
 						details: listResult.errors.map((error: Error) => ({
 							type: 'error' as const,
 							code: 'code' in error ? (error as any).code : undefined,
@@ -209,7 +222,7 @@ export function runUnitTestsTask(extension: BasePackage, args: Record<string, an
 					};
 				}
 
-				const { listing } = reporter.finish();
+				const listing = listMetrics?.listing;
 				const listed = listResult.report.filter((token) => token.id === 'TEST_LISTED').length;
 
 				return {
@@ -301,13 +314,17 @@ export function runUnitTestsTask(extension: BasePackage, args: Record<string, an
 				const allBuildErrors = details.every(
 					(detail) => detail.type === 'error' && isBuildErrorCode(detail.code),
 				);
+				const metrics = hasTests
+					? unitMetrics(reporter.finish({ consoleLogs: showsBrowserConsole(args.console) ? deduplicateConsoleLogs(consoleLogSets) : [] }))
+					: undefined;
 
 				reporter.clearStatus();
 
 				return {
-					title: allBuildErrors ? 'Unit tests (build failed)' : 'Unit tests',
+					title: allBuildErrors ? 'Unit tests (build errors)' : 'Unit tests',
 					status: 'failed',
 					details,
+					metrics,
 				};
 			}
 

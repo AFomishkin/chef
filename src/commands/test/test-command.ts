@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Command, InvalidArgumentError } from 'commander';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { SequentialQueue } from '../../utils/sequential-queue';
 
 import { preparePath } from '../../utils/cli/prepare-path';
@@ -22,6 +22,15 @@ import { formatInternalError } from '../../diagnostics/format-error';
 import { CF } from '../../diagnostics/diagnostic-codes';
 import { printSummary } from '../../shared/print-summary';
 import { isValidConsoleValue, consoleTargetValues } from './console-target';
+
+function recoveryInteger(value: string): number
+{
+	if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))
+	{
+		throw new InvalidArgumentError('Expected a non-negative integer');
+	}
+	return Number(value);
+}
 
 function parseConsoleOption(value: string): string
 {
@@ -256,6 +265,9 @@ async function runTestsJson({ extensions, args, type }: RunTestsOptions): Promis
 		file: args.file,
 		project: args.project,
 		listOnly: args.list,
+		buildRecovery: args.buildRecovery,
+		buildRecoveryRetries: args.buildRecoveryRetries,
+		buildRecoveryTimeoutMs: args.buildRecoveryTimeoutMs,
 	});
 	await emitJson(result);
 	process.exit(result.success ? 0 : 1);
@@ -468,6 +480,17 @@ const commonOptions = (cmd: Command, forwardsToRunner = true) => cmd
 	.option('--console [target]', 'Print test output: browser (in-page console), node (test process stdout), or all. Bare --console means browser.', parseConsoleOption)
 	.option('--cdp-port <port>', 'Launch browser with Chrome DevTools Protocol on this port', parseInt)
 	.option('--list', 'List the tests that would run, without running them')
+	.addOption(new Option('--build-recovery <mode>', 'Unit build recovery policy (protocol v1)').choices(['off', 'exclude', 'individual']))
+	.option('--build-recovery-retries <count>', 'Maximum additional builds per target, shared by all recovery paths', recoveryInteger)
+	.option('--build-recovery-timeout-ms <ms>', 'Recovery budget after first failed build; in-flight build finishes', recoveryInteger)
+	.hook('preAction', (_command, actionCommand) => {
+		const args = actionCommand.optsWithGlobals();
+		if (['e2e', 'module'].includes(actionCommand.name())
+			&& [args.buildRecovery, args.buildRecoveryRetries, args.buildRecoveryTimeoutMs].some((value) => value !== undefined))
+		{
+			actionCommand.error('Build recovery options apply to unit tests only');
+		}
+	})
 	.addHelpText('after', forwardsToRunner ? PLAYWRIGHT_HELP : '');
 
 function resolveModules(rawModules: string[]): { modules: string[]; file?: string }
@@ -550,6 +573,9 @@ async function runModuleTests(rawModules: string[], args: Record<string, any>): 
 			grep: args.grep,
 			project: args.project,
 			listOnly: args.list,
+			buildRecovery: args.buildRecovery,
+			buildRecoveryRetries: args.buildRecoveryRetries,
+			buildRecoveryTimeoutMs: args.buildRecoveryTimeoutMs,
 		});
 		await emitJson(result);
 		process.exit(result.success ? 0 : 1);

@@ -85,6 +85,28 @@ chef test vendor.my-extension --list
 chef test vendor.my-extension -w
 ```
 
+### Unit test build failures
+
+Chef first bundles all selected unit files for an extension together. If the builder
+unambiguously identifies one of those entries, Chef records the failure, removes that
+entry from the input list, and rebuilds the remainder. Files on disk are not modified.
+If the source is unknown, belongs to a shared dependency, or an excluded entry is still
+imported by other tests, Chef builds and runs the remaining entries individually.
+A broken shared dependency can therefore block several files.
+
+Recovery is limited to three additional builds and 120000 ms after the first failure; remaining files are untested. [Recovery options](/en/build-recovery).
+
+Each successful bundle executes once. Browser, page, and assertion failures do not
+trigger this recovery. Individual runs cost more and require independent test files:
+cross-file hooks and shared state are not carried over.
+
+The run stays unsuccessful. Build errors remain in JSON `runErrors` and as separate
+failed `[build] <file>` entries under `Chef build errors`. Falling back to individual
+builds also preserves a `combined test bundle` failure, even when every individual
+file works. These entries count build failures, not the number of unexecuted tests
+inside a file. `--grep` does not hide build failures. With `--list`, healthy tests
+are listed without execution and build failures remain visible.
+
 ### Live output
 
 During a run chef shows a single per-browser status bar — one look from start to finish. While an engine warms up you see its stage; once tests start, a counter and the test currently running:

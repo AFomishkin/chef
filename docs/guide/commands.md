@@ -57,6 +57,9 @@ chef test module [modules...] [options]    # сценарные тесты ур�
 | `-p, --path [path]` | Тестировать конкретную директорию |
 | `--headed` | Запускать с видимым окном браузера |
 | `--debug` | Открыть браузер с DevTools и sourcemaps |
+| `--build-recovery <mode>` | Только unit: off, exclude, individual (по умолчанию); debug/CDP ограничивает individual до exclude |
+| `--build-recovery-retries <count>` | Дополнительные сборки unit, по умолчанию 3 |
+| `--build-recovery-timeout-ms <ms>` | Бюджет восстановления unit, по умолчанию 120000 мс; начатая сборка завершается |
 | `--grep <pattern>` | Запускать только тесты, соответствующие паттерну |
 | `--project <names>` | Запускать в конкретных браузерах (chromium, firefox, webkit) |
 | `--console` | Печатать консольный вывод браузера (по умолчанию скрыт) |

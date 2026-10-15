@@ -57,6 +57,9 @@ chef test module [modules...] [options]    # module-level scenario tests
 | `-p, --path [path]` | Test a specific directory |
 | `--headed` | Run with visible browser window |
 | `--debug` | Open browser with DevTools and sourcemaps |
+| `--build-recovery <mode>` | Unit only: off, exclude, individual (default); debug/CDP restrict individual to exclude |
+| `--build-recovery-retries <count>` | Unit only: additional builds, default 3 |
+| `--build-recovery-timeout-ms <ms>` | Unit only: recovery time budget, default 120000; in-flight build finishes |
 | `--grep <pattern>` | Run only tests matching the pattern |
 | `--project <names>` | Run in specific browsers (chromium, firefox, webkit) |
 | `--console` | Print captured browser console output (hidden by default) |

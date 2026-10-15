@@ -28,6 +28,7 @@ const sidebarRu = [
     items: [
       { text: 'Обзор', link: '/guide/testing' },
       { text: 'Unit-тесты', link: '/guide/testing-unit' },
+      { text: 'Восстановление сборки', link: '/build-recovery' },
       { text: 'Unit-тесты Vue 3', link: '/guide/testing-vue' },
       { text: 'E2E-тесты', link: '/guide/testing-e2e' },
       { text: 'E2E-тесты Vue 3', link: '/guide/testing-e2e-vue' },
@@ -105,6 +106,7 @@ const sidebarEn = [
     items: [
       { text: 'Overview', link: '/en/guide/testing' },
       { text: 'Unit Tests', link: '/en/guide/testing-unit' },
+      { text: 'Build Recovery', link: '/en/build-recovery' },
       { text: 'Unit Tests Vue 3', link: '/en/guide/testing-vue' },
       { text: 'E2E Tests', link: '/en/guide/testing-e2e' },
       { text: 'E2E Tests Vue 3', link: '/en/guide/testing-e2e-vue' },

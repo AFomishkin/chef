@@ -33,7 +33,9 @@ import type {
 
 export type TestKind = 'unit' | 'e2e' | 'all';
 
-export type TestOptions = JsonInputOptions & TargetSelector & {
+import type { RecoveryOptions, RecoveryReport } from '../../modules/engines/test/unit/playwright/recover-test-bundles';
+
+export type TestOptions = JsonInputOptions & TargetSelector & RecoveryOptions & {
 	kind?: TestKind,
 	headed?: boolean,
 	debug?: boolean,
@@ -80,6 +82,7 @@ export type TestEntry = {
 };
 
 export type TestKindDetails = {
+	buildRecovery?: RecoveryReport,
 	ran: boolean,
 	// True when this kind was only listed (--list), not run.
 	listed?: boolean,
@@ -348,6 +351,9 @@ async function runUnit(extensionPackage: BasePackage, options: TestOptions): Pro
 			file: options.file,
 			browserType,
 			listOnly: options.listOnly,
+			buildRecovery: options.buildRecovery,
+			buildRecoveryRetries: options.buildRecoveryRetries,
+			buildRecoveryTimeoutMs: options.buildRecoveryTimeoutMs,
 		});
 		merger.absorb(result, browserType);
 		allLogs.push(...result.consoleLogs);
@@ -426,6 +432,8 @@ function createMerger(): Merger
 	const map = new Map<string, TestEntry>();
 	const browsers = new Set<string>();
 	const runErrors: JsonErrorPayload[] = [];
+	const runErrorKeys = new Set<string>();
+	let buildRecovery: RecoveryReport | undefined;
 
 	const keyOf = (suite: string[], title: string): string => {
 		return JSON.stringify([...suite, title]);
@@ -446,9 +454,16 @@ function createMerger(): Merger
 	return {
 		absorb(result, fallbackBrowser)
 		{
+			buildRecovery ??= result.buildRecovery;
 			for (const error of result.errors)
 			{
-				runErrors.push(toErrorPayload(error, CF.PLAYWRIGHT_ERROR));
+				const payload = toErrorPayload(error, CF.PLAYWRIGHT_ERROR);
+				const key = JSON.stringify([payload.code, payload.message]);
+				if (!runErrorKeys.has(key))
+				{
+					runErrorKeys.add(key);
+					runErrors.push(payload);
+				}
 			}
 
 			const stack: string[] = [];
@@ -569,6 +584,7 @@ function createMerger(): Merger
 				tests,
 				consoleLogs,
 				runErrors,
+				buildRecovery,
 			};
 		},
 	};

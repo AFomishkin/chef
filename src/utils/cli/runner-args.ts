@@ -53,6 +53,9 @@ const CHEF_OPTIONS = new Set([
 	'--reporter',
 	'--console',
 	'--cdp-port',
+	'--build-recovery',
+	'--build-recovery-retries',
+	'--build-recovery-timeout-ms',
 	'--list',
 	'--help', '-h',
 ]);
