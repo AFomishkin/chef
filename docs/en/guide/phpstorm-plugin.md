@@ -86,6 +86,9 @@ API). chef provides a language server that also lints Flow files:
 2. In **Settings | Tools | Oxlint**, select **Manual Oxlint configuration** and set
    **Path to Oxlint Language Server** to `chef-oxlint` from the global chef installation
    (`$(npm root -g)/@bitrix/chef/bin/chef-oxlint`). Leave **Path to Oxlint Config** empty.
+   With an Oxc plugin before 0.0.44, also turn on **Add --lsp CLI argument** there. If the server
+   does not start and the IDE reports `'initialized' response not received from the server`,
+   update the plugin or check this setting.
 3. Turn ESLint off for the project (**Settings | Languages & Frameworks | JavaScript |
    Code Quality Tools | ESLint**), otherwise the same problems are reported twice.
 

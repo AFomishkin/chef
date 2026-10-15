@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -23,10 +23,10 @@ class Client
 	// answer workspace/configuration with an error, like an editor that cannot
 	configurationFails = false;
 
-	constructor(cwd: string)
+	constructor(cwd: string, args: string[] = ['--lsp'])
 	{
 		const bin = path.resolve('bin', 'chef-oxlint');
-		this.#process = spawn(process.execPath, [bin, '--lsp'], { cwd, stdio: ['pipe', 'pipe', 'ignore'] });
+		this.#process = spawn(process.execPath, [bin, ...args], { cwd, stdio: ['pipe', 'pipe', 'ignore'] });
 		this.#process.stdout.on('data', (chunk: Buffer) => this.#receive(chunk));
 	}
 
@@ -179,6 +179,40 @@ describe('oxlint language server', function ()
 		const fix = (response.result as any[]).find((action) => action.edit?.changes);
 
 		assert.deepEqual(Object.keys(fix.edit.changes), [uri]);
+	});
+});
+
+describe('chef-oxlint without arguments', function ()
+{
+	this.timeout(60000);
+
+	const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'chef-oxlint-no-args-test-')));
+
+	before(() => {
+		fs.writeFileSync(path.join(root, 'index.js'), 'debugger;\n');
+	});
+
+	after(() => {
+		fs.rmSync(root, { recursive: true, force: true });
+	});
+
+	it('starts the language server when an editor talks to it over pipes', async () => {
+		const client = new Client(root, []);
+		const response = await client.request('initialize', {
+			processId: process.pid,
+			rootUri: pathToFileURL(root).href,
+			capabilities: {},
+		});
+
+		assert.isObject(response.result?.capabilities);
+		await client.stop();
+	});
+
+	it('lints the working directory when stdin is not a pipe', () => {
+		const bin = path.resolve('bin', 'chef-oxlint');
+		const result = spawnSync(process.execPath, [bin], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf-8' });
+
+		assert.include(result.stdout, 'no-debugger');
 	});
 });
 

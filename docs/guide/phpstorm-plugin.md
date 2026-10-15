@@ -86,6 +86,9 @@ IDE). chef поставляет языковой сервер, который л
 2. В **Settings | Tools | Oxlint** выберите **Manual Oxlint configuration** и укажите в
    **Path to Oxlint Language Server** `chef-oxlint` из глобальной установки chef
    (`$(npm root -g)/@bitrix/chef/bin/chef-oxlint`). **Path to Oxlint Config** оставьте пустым.
+   В плагине Oxc до версии 0.0.44 включите там же **Add --lsp CLI argument**. Если сервер не
+   запускается и IDE сообщает `'initialized' response not received from the server`, обновите
+   плагин или проверьте эту настройку.
 3. Выключите ESLint в проекте (**Settings | Languages & Frameworks | JavaScript |
    Code Quality Tools | ESLint**), иначе каждая проблема будет показана дважды.
 
