@@ -90,12 +90,14 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 		const cacheKey = JSON.stringify([
 			options.packageRoot, options.projectRoot, options.publicPath, options.packageName,
 			options.targets, options.typescript, options.inline, files,
+			options.buildRecovery, options.buildRecoveryRetries, options.buildRecoveryTimeoutMs,
 		]);
 		if (!PlaywrightUnitStrategy.#bundleCache.has(cacheKey))
 		{
 			PlaywrightUnitStrategy.#bundleCache.set(cacheKey, recoverTestBundles(
 				files,
 				(testFiles) => this.#buildTestBundle({ ...options, file: undefined, testFiles }),
+				options,
 			));
 		}
 
@@ -154,6 +156,13 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 		options.onStatus?.('building');
 		const plan = await this.#getCachedBundle(options);
 		const combined: TestResult = { report: [], stats: {}, consoleLogs: [], errors: [] };
+		const relativeFile = (file: string) => path.relative(options.packageRoot, file).replaceAll('\\', '/');
+		combined.buildRecovery = {
+			...plan.recovery,
+			excludedFiles: plan.recovery.excludedFiles.map(relativeFile),
+			untestedFiles: plan.recovery.untestedFiles.map(relativeFile),
+			errors: plan.recovery.errors.map((error) => ({ ...error, files: error.files.map(relativeFile) })),
+		};
 		const cleanups: Array<() => Promise<void>> = [];
 		for (const failure of plan.failures)
 		{
@@ -178,6 +187,17 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 			combined.report.push(token);
 			options.onToken?.(token);
 		}
+		if (plan.recovery.untestedFiles.length > 0)
+		{
+			const message = `Build recovery stopped: ${plan.recovery.stopReason}; ${plan.recovery.untestedFiles.length} files not tested`;
+			combined.errors.push(Object.assign(new Error(message), { code: 'UNIT_BUILD_RECOVERY_STOPPED' }));
+			const token: TestToken = {
+				id: 'TEST_FAILED', title: '[build] recovery stopped', suite: ['Chef build errors'],
+				browser: options.browserType ?? 'chromium', error: { message },
+			};
+			combined.report.push(token);
+			options.onToken?.(token);
+		}
 		for (const { bundle } of plan.bundles)
 		{
 			// Only compilation triggers recovery. Browser/config/runtime/assertion
@@ -197,8 +217,8 @@ export class PlaywrightUnitStrategy extends UnitTestStrategy
 				cleanups.push(result.debugCleanup);
 			}
 		}
-		combined.stats.failures = Number(combined.stats.failures ?? 0) + plan.failures.length;
-		combined.stats.tests = Number(combined.stats.tests ?? 0) + plan.failures.length;
+		combined.stats.failures = Number(combined.stats.failures ?? 0) + plan.failures.length + (plan.recovery.untestedFiles.length > 0 ? 1 : 0);
+		combined.stats.tests = Number(combined.stats.tests ?? 0) + plan.failures.length + (plan.recovery.untestedFiles.length > 0 ? 1 : 0);
 		combined.debugCleanup = cleanups.length > 0
 			? async () => { await Promise.all(cleanups.map((cleanup) => cleanup())); }
 			: null;

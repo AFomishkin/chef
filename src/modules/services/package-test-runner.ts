@@ -34,6 +34,9 @@ export class PackageTestRunner
 			file: args.file,
 			cdpPort: args.cdpPort,
 			listOnly: args.listOnly,
+			buildRecovery: args.buildRecovery,
+			buildRecoveryRetries: args.buildRecoveryRetries,
+			buildRecoveryTimeoutMs: args.buildRecoveryTimeoutMs,
 			onToken: args.onToken,
 			onStatus: args.onStatus,
 		});

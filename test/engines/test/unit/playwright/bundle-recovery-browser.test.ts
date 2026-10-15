@@ -127,6 +127,21 @@ import type { UnitTestOptions, TestToken } from '../../../../../src/modules/engi
 		assert.lengthOf(result.errors, 2);
 	});
 
+ it('reports untested files separately and does not reuse a cache with a different policy', async () => {
+  healthy('first'); file('bad.test.js', 'const broken = ;');
+  const limited = await new PlaywrightUnitStrategy().run({...options, buildRecoveryRetries: 0});
+  assert.equal(builds.length, 1);
+  assert.equal(limited.buildRecovery?.stopReason, 'retry-limit');
+  assert.deepEqual(limited.buildRecovery?.excludedFiles, ['bad.test.js']);
+  assert.deepEqual(limited.buildRecovery?.untestedFiles, ['first.test.js']);
+  assert.lengthOf(limited.report.filter(t => t.id === 'TEST_PASSED'), 0);
+  assert.equal(limited.stats.failures, 2);
+  const recovered = await new PlaywrightUnitStrategy().run({...options, buildRecoveryRetries: 1});
+  assert.equal(builds.length, 3);
+  assert.lengthOf(recovered.report.filter(t => t.id === 'TEST_PASSED'), 1);
+  assert.deepEqual(recovered.buildRecovery?.untestedFiles, []);
+ });
+
 	it('does not retry assertions or page failures', async () => {
 		file('assert.test.js', `describe('suite', () => it('fails', () => { throw new Error('assertion'); }));`);
 		const assertion = await new PlaywrightUnitStrategy().run(options);

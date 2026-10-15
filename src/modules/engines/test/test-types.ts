@@ -74,7 +74,9 @@ export type ListingCounts = {
 	skipped: number;
 };
 
-export type UnitTestOptions = {
+import type { RecoveryOptions, RecoveryReport } from './unit/playwright/recover-test-bundles';
+
+export type UnitTestOptions = RecoveryOptions & {
 	packageName: string;
 	packageRoot: string;
 	projectRoot: string;
@@ -128,6 +130,7 @@ export type NodeOutputSection = {
 };
 
 export type TestResult = {
+	buildRecovery?: RecoveryReport;
 	report: TestToken[];
 	stats: Record<string, unknown>;
 	consoleLogs: ConsoleLog[];
